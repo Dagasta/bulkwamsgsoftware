@@ -51,6 +51,9 @@ export async function POST(req: Request) {
         // return NextResponse.json({ debug_token: access_token });
 
         // 2. Create Order
+        const formattedAmount = parseFloat(amount || '10.00').toFixed(2);
+        console.log(`[PayPal API] Creating order for ${formattedAmount} USD`);
+
         const orderResponse = await fetch(`${endpoint}/v2/checkout/orders`, {
             method: 'POST',
             headers: {
@@ -61,9 +64,25 @@ export async function POST(req: Request) {
                 intent: 'CAPTURE',
                 purchase_units: [
                     {
+                        items: [
+                            {
+                                name: `BulkWaMsg Pro Plan - ${planId}`,
+                                quantity: '1',
+                                unit_amount: {
+                                    currency_code: 'USD',
+                                    value: formattedAmount,
+                                },
+                            },
+                        ],
                         amount: {
                             currency_code: 'USD',
-                            value: amount || '10.00',
+                            value: formattedAmount,
+                            breakdown: {
+                                item_total: {
+                                    currency_code: 'USD',
+                                    value: formattedAmount,
+                                },
+                            },
                         },
                         description: `BulkWaMsg Pro Plan - ${planId}`,
                     },

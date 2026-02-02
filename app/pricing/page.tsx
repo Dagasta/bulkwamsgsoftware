@@ -1,9 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 import { Check, Zap, Shield, Crown, ArrowRight, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 
 const plans = [
     {
@@ -41,7 +43,17 @@ const plans = [
 export default function PricingPage() {
     const [loading, setLoading] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [user, setUser] = useState<any>(null);
     const router = useRouter();
+    const supabase = createClient();
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
+        };
+        fetchUser();
+    }, [supabase]);
 
     const paypalOptions = {
         clientId: process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || '',
@@ -162,7 +174,15 @@ export default function PricingPage() {
                                         ))}
                                     </ul>
 
-                                    {paypalOptions.clientId ? (
+                                    {!user ? (
+                                        <Link
+                                            href="/login?redirect=/pricing"
+                                            className="w-full bg-dark-navy text-white py-4 rounded-full font-black text-center hover:bg-black transition-all shadow-xl flex items-center justify-center gap-3"
+                                        >
+                                            LOGIN TO SUBSCRIBE
+                                            <ArrowRight className="w-5 h-5" />
+                                        </Link>
+                                    ) : paypalOptions.clientId ? (
                                         <div className="min-h-[150px] relative z-10 transition-all">
                                             <PayPalButtons
                                                 style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 45 }}
