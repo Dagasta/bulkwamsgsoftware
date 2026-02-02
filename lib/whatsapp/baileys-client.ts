@@ -1,4 +1,4 @@
-import makeWASocket, { DisconnectReason, useMultiFileAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, useMultiFileAuthState as getBaileysAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import { Boom } from '@hapi/boom';
 import * as fs from 'fs';
@@ -89,8 +89,7 @@ export async function initializeBaileysWhatsApp(userId: string) {
 
         // Load auth state
         console.log(`[Baileys] Loading auth state...`);
-        // eslint-disable-next-line react-hooks/rules-of-hooks
-        const { state, saveCreds } = await useMultiFileAuthState(authDir);
+        const { state, saveCreds } = await getBaileysAuthState(authDir);
 
         // Create socket
         console.log(`[Baileys] Creating socket...`);
