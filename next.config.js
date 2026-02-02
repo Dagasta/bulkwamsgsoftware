@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+// Force deployment trigger: 2026-02-02
 const nextConfig = {
     images: {
         remotePatterns: [
