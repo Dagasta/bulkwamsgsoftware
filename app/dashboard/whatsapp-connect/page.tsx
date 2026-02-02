@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect, useCallback } from 'react';
 import { QrCode, CheckCircle2, Loader2, RefreshCw, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';

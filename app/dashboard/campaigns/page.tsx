@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { useState } from 'react';
 import {
     Plus,
@@ -131,10 +133,10 @@ export default function CampaignsPage() {
                                         </td>
                                         <td className="py-8 px-6">
                                             <span className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-[0.1em] border shadow-sm ${campaign.status === 'completed'
-                                                    ? 'bg-emerald-50 text-success-green border-emerald-100'
-                                                    : campaign.status === 'scheduled'
-                                                        ? 'bg-amber-50 text-warning-amber border-amber-100'
-                                                        : 'bg-slate-50 text-slate-400 border-slate-100'
+                                                ? 'bg-emerald-50 text-success-green border-emerald-100'
+                                                : campaign.status === 'scheduled'
+                                                    ? 'bg-amber-50 text-warning-amber border-amber-100'
+                                                    : 'bg-slate-50 text-slate-400 border-slate-100'
                                                 }`}>
                                                 {campaign.status === 'completed' ? <CheckCircle2 className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
                                                 {campaign.status}
