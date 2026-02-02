@@ -7,9 +7,8 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUz
 
 export const createClient = () => {
     const cookieStore = cookies();
-    return createServerComponentClient({
-        cookies: () => cookieStore,
-        supabaseUrl,
-        supabaseKey,
-    });
+    return createServerComponentClient(
+        { cookies: () => cookieStore },
+        { supabaseUrl, supabaseKey }
+    );
 };
