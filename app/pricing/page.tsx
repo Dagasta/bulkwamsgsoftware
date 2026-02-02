@@ -161,12 +161,24 @@ export default function PricingPage() {
                                         ))}
                                     </ul>
 
-                                    <PayPalButtons
-                                        style={{ layout: 'vertical', shape: 'pill', label: 'pay' }}
-                                        createOrder={() => handleCreateOrder(plan)}
-                                        onApprove={(data) => handleApprove(data)}
-                                        className="relative z-10"
-                                    />
+                                    {paypalOptions.clientId ? (
+                                        <div className="min-h-[150px] relative z-10 transition-all">
+                                            <PayPalButtons
+                                                style={{ layout: 'vertical', shape: 'pill', label: 'pay', height: 45 }}
+                                                createOrder={() => handleCreateOrder(plan)}
+                                                onApprove={(data) => handleApprove(data)}
+                                                className="relative z-10"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 bg-red-50 rounded-2xl border-2 border-red-100 text-center space-y-3">
+                                            <Shield className="w-8 h-8 text-red-400 mx-auto" />
+                                            <p className="text-sm font-black text-red-600 uppercase tracking-tight">Configuration Required</p>
+                                            <p className="text-[10px] text-red-400 font-bold italic leading-relaxed">
+                                                PayPal Client ID is missing. Please add <span className="underline">NEXT_PUBLIC_PAYPAL_CLIENT_ID</span> to your environment variables.
+                                            </p>
+                                        </div>
+                                    )}
 
                                     <p className="text-center mt-6 text-xs text-slate-400 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
                                         <Shield className="w-3 h-3" />
