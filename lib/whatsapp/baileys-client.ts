@@ -1,6 +1,4 @@
-/* eslint-disable */
-import * as baileys from '@whiskeysockets/baileys';
-import makeWASocket, { DisconnectReason, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
+import makeWASocket, { DisconnectReason, useMultiFileAuthState as getBaileysAuthState, fetchLatestBaileysVersion } from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import { Boom } from '@hapi/boom';
 import * as fs from 'fs';
@@ -91,7 +89,7 @@ export async function connectToWhatsApp(userId: string) {
 
         // Load auth state
         console.log(`[Baileys] Loading auth state...`);
-        const { state, saveCreds } = await (baileys as any).useMultiFileAuthState(authDir);
+        const { state, saveCreds } = await getBaileysAuthState(authDir);
 
         // Create socket
         console.log(`[Baileys] Creating socket...`);
