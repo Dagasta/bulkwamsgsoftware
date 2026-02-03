@@ -26,8 +26,8 @@
 - 🎯 **Content Strategy** - Blog architecture for long-tail keyword targeting
 
 ### Monetization
-- 💰 **PayPal Integration** - Subscription billing and management
-- 💰 **Tiered Pricing** - Free, Starter ($29), Professional ($79), Enterprise
+- 💰 **Stripe Integration** - Subscription billing and management
+- 💰 **Tiered Pricing** - Pro Monthly ($10), Pro Yearly ($120)
 - 💰 **Feature Limits** - Usage-based restrictions per plan
 
 ---
@@ -39,7 +39,7 @@
 - **Styling**: Tailwind CSS
 - **Database**: Supabase (PostgreSQL)
 - **Authentication**: Supabase Auth
-- **Payments**: PayPal SDK
+- **Payments**: Stripe Checkout & Webhooks
 - **WhatsApp**: whatsapp-web.js (or Baileys)
 - **Deployment**: Vercel
 - **Analytics**: Vercel Analytics
@@ -51,7 +51,7 @@
 ### Prerequisites
 - Node.js 18+ and npm
 - Supabase account
-- PayPal Business account
+- Stripe account
 - Git
 
 ### 1. Clone the Repository
@@ -83,18 +83,15 @@ NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 
-# PayPal Configuration
-NEXT_PUBLIC_PAYPAL_CLIENT_ID=your_paypal_client_id
-PAYPAL_CLIENT_SECRET=your_paypal_client_secret
-PAYPAL_MODE=sandbox
-
-# PayPal Plan IDs
-PAYPAL_STARTER_PLAN_ID=your_starter_plan_id
-PAYPAL_PRO_PLAN_ID=your_pro_plan_id
-PAYPAL_ENTERPRISE_PLAN_ID=your_enterprise_plan_id
+# Stripe Configuration
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_MONTHLY_PRICE_ID=your_monthly_price_id
+STRIPE_YEARLY_PRICE_ID=your_yearly_price_id
+STRIPE_WEBHOOK_SECRET=your_webhook_secret
 
 # App Configuration
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
 ### 4. Database Setup
@@ -133,10 +130,10 @@ vercel
 ### Environment Variables for Production
 
 Make sure to set all environment variables in Vercel:
-- Change `PAYPAL_MODE` to `live`
-- Update `NEXT_PUBLIC_APP_URL` to your production domain
+- Update `NEXT_PUBLIC_SITE_URL` to your production domain
 - Add production Supabase credentials
-- Add production PayPal credentials
+- Add production Stripe credentials
+- Add production Stripe Webhook Secret
 
 ---
 
@@ -157,7 +154,7 @@ bulkwamsg/
 │   ├── campaigns/           # Campaign management
 │   ├── contacts/            # Contact management
 │   ├── analytics/           # Analytics dashboard
-│   ├── api/                 # API routes
+│   ├── api/                 # API routes (Stripe, WhatsApp)
 │   ├── sitemap.ts           # Dynamic sitemap
 │   └── robots.ts            # Robots.txt
 ├── components/              # React components
@@ -165,8 +162,8 @@ bulkwamsg/
 │   └── tools/               # Tool components
 ├── lib/                     # Utilities
 │   ├── supabase/           # Supabase client
-│   ├── paypal/             # PayPal integration
-│   └── whatsapp/           # WhatsApp integration
+│   ├── whatsapp/           # WhatsApp integration
+│   └── stripe/             # Stripe utilities (if added later)
 ├── public/                  # Static assets
 ├── supabase/               # Database migrations
 └── docs/                   # Documentation
@@ -292,8 +289,8 @@ This project is proprietary software. All rights reserved.
 - [ ] Free tools expansion
 - [ ] Backlink strategy
 
-### Phase 5: Monetization 📅
-- [ ] PayPal subscription integration
+### Phase 5: Monetization ✅
+- [x] Stripe subscription integration
 - [ ] Usage tracking and limits
 - [ ] Upgrade/downgrade flows
 - [ ] Referral system

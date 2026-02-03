@@ -186,29 +186,34 @@ CREATE INDEX IF NOT EXISTS idx_analytics_user_id ON analytics(user_id);
 
 ---
 
-## ✅ Step 4: Configure PayPal (Optional - 5 minutes)
+## ✅ Step 4: Configure Stripe (Optional - 5 minutes)
 
-### 4.1 Get PayPal Credentials
+### 4.1 Get Stripe Credentials
 
-1. **Go to PayPal Developer**
-   - Visit: [https://developer.paypal.com/dashboard](https://developer.paypal.com/dashboard)
-   - Login with your PayPal account
+1. **Go to Stripe Dashboard**
+   - Visit: [https://dashboard.stripe.com](https://dashboard.stripe.com)
+   - Login with your Stripe account
 
-2. **Create an App**
-   - Click **Apps & Credentials**
-   - Switch to **Sandbox** (for testing) or **Live** (for production)
-   - Click **Create App**
-   - Name it: "BulkWaMsg"
+2. **Get API Keys**
+   - Go to **Developers** → **API Keys**
+   - Copy the **Publishable Key** and **Secret Key**
 
-3. **Copy Credentials**
-   - After creating, you'll see:
-     - **Client ID** - Copy this
-     - **Secret** - Click "Show" and copy
-
-4. **Update .env.local**
+3. **Update .env.local**
    ```env
-   NEXT_PUBLIC_PAYPAL_CLIENT_ID=your_client_id_here
-   PAYPAL_CLIENT_SECRET=your_secret_here
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_pk_key
+   STRIPE_SECRET_KEY=your_sk_key
+   ```
+
+### 4.2 Create Pricing Plans
+
+1. In Stripe Dashboard → **Product catalog** → **Add product**
+2. Create plans:
+   - **Pro Monthly**: $10/month
+   - **Pro Yearly**: $120/year
+3. Copy the **Price ID** (starts with `price_`) for each and add to `.env.local`:
+   ```env
+   STRIPE_MONTHLY_PRICE_ID=price_...
+   STRIPE_YEARLY_PRICE_ID=price_...
    ```
 
 ### 4.2 Create Subscription Plans (Optional)
@@ -311,7 +316,7 @@ Now you can manage your database visually in pgAdmin!
 ✅ **Ready for Production**
 - Can deploy to Vercel
 - Database is production-ready
-- PayPal integration ready
+- Stripe integration ready
 
 ---
 
@@ -330,8 +335,8 @@ Now you can manage your database visually in pgAdmin!
 - Easy to add once you need it
 
 ❌ **Payment Processing**
-- PayPal credentials ready but subscription flow not implemented
-- Can add when you're ready to monetize
+- Stripe credentials ready and subscription flow implemented
+- Webhooks need to be configured for automatic profile upgrades
 
 ---
 
@@ -342,7 +347,7 @@ Now you can manage your database visually in pgAdmin!
 - [ ] Run SQL script in Supabase
 - [ ] Create test account at `/signup`
 - [ ] Login and explore dashboard
-- [ ] (Optional) Add PayPal credentials
+- [ ] (Optional) Add Stripe credentials
 - [ ] (Optional) Connect pgAdmin
 - [ ] (Optional) Deploy to Vercel
 

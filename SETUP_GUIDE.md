@@ -173,25 +173,23 @@ CREATE POLICY "Users can view own analytics" ON analytics
 - More complex setup
 - Install: `npm install @whiskeysockets/baileys`
 
-### PayPal Integration
+### Stripe Integration (NEW)
 
-1. **Create PayPal Developer Account**
-   - Go to: [https://developer.paypal.com](https://developer.paypal.com)
-   - Create an app in the dashboard
+1. **Create Stripe Account**
+   - Go to: [https://stripe.com](https://stripe.com)
+   - Enable Live mode or use Test mode.
 
 2. **Get Credentials**
-   - Copy Client ID and Secret
+   - Copy Publishable Key and Secret Key from Developers → API Keys.
    - Add to `.env.local`:
    ```env
-   NEXT_PUBLIC_PAYPAL_CLIENT_ID=your_client_id
-   PAYPAL_CLIENT_SECRET=your_secret
+   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_pk_key
+   STRIPE_SECRET_KEY=your_sk_key
    ```
 
-3. **Create Subscription Plans**
-   - In PayPal dashboard, create plans for:
-     - Starter: $29/month
-     - Professional: $99/month
-     - Enterprise: Custom
+3. **Create Pricing Plans**
+   - In Stripe Dashboard, create products for Monthly and Yearly.
+   - Copy the Price IDs and add to `.env.local`.
 
 ---
 
@@ -224,7 +222,7 @@ CREATE POLICY "Users can view own analytics" ON analytics
 ⏳ **Needs Setup:**
 - Database tables (follow Step 2)
 - WhatsApp connection
-- PayPal payments
+- Stripe webhook configuration
 - Actual message sending
 
 ---
@@ -244,5 +242,5 @@ CREATE POLICY "Users can view own analytics" ON analytics
 2. ✅ Create database tables (Step 2)
 3. ✅ Test authentication (Step 3)
 4. Choose WhatsApp integration method
-5. Set up PayPal (if monetizing)
+5. Set up Stripe (Step 5 in README)
 6. Deploy to production (Vercel recommended)
