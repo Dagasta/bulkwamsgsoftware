@@ -195,10 +195,10 @@ export async function connectToWhatsApp(userId: string) {
                 version,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ['Mac OS', 'Chrome', '121.0.0.0'], // Standard stable browser string
-                connectTimeoutMs: 90000, // Increased for stability
+                browser: ['Ubuntu', 'Chrome', '20.0.04'], // Most stable Baileys browser string
+                connectTimeoutMs: 120000, // Very generous for slow handshakes
                 defaultQueryTimeoutMs: 120000,
-                keepAliveIntervalMs: 25000,
+                keepAliveIntervalMs: 30000,
                 retryRequestDelayMs: 5000,
                 fireInitQueries: true,
                 markOnlineOnConnect: true,

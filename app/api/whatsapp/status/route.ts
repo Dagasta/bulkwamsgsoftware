@@ -58,9 +58,8 @@ export async function GET() {
                 console.error(`[Baileys Status] ❌ Bridge failed:`, err);
             });
 
-            // SMALL BOOTSTRAP DELAY: If we just triggered a bridge, wait 2s to see if a QR generates
-            // This prevents the first poll from always returning 'initializing' and showing a flicker.
-            await new Promise(r => setTimeout(r, 2000));
+            // SMALL BOOTSTRAP DELAY: Minimal delay to allow memory set
+            await new Promise(r => setTimeout(r, 800));
 
             // Re-check state after delay
             const freshQR = getBaileysQRCode(userId);
