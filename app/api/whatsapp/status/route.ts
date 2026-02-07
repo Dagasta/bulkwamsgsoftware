@@ -27,14 +27,13 @@ export async function GET() {
         let memoryReady = isBaileysReady(userId);
         let qrCode = getBaileysQRCode(userId);
 
-        // --- THE PERMANENT TRUTH (V40) ---
-        // On Vercel, memory is volatile. Database is the ONLY constant.
+        // --- THE PERMANENT TRUTH (V42) ---
         const { data: profile } = await supabase.from('profiles').select('whatsapp_linked').eq('id', userId).single();
         const dbReady = profile?.whatsapp_linked || false;
 
-        // If the DB says we are linked, we are READY. 
-        // We only show "Scan QR" if DB is false.
-        const ready = dbReady;
+        // HYBRID READY: Success if memory says so OR DB says so.
+        // This makes the initial scan result INSTANT.
+        const ready = memoryReady || dbReady;
 
         // --- THE CONNECTION BRIDGE (V41) ---
         const { activeConnections, connPromises } = await import('@/lib/whatsapp/baileys-client');
@@ -59,17 +58,18 @@ export async function GET() {
 
         return NextResponse.json({
             qrCode,
-            ready, // DB Truth
+            ready, // Hybrid Truth (Memory + DB)
             isSocketAlive,
             memoryReady,
-            initializing: initializing || (ready && !isSocketAlive), // If DB is ready but socket isn't, we are "initializing" the bridge
+            dbReady,
+            initializing: initializing || (ready && !isSocketAlive),
             linking,
             timestamp: Date.now(),
             isSyncing: ready && (!isSocketAlive),
             message: ready
                 ? (isSocketAlive ? 'WhatsApp is connected' : 'Neural Link Active (Syncing...)')
                 : linking
-                    ? 'Linking device... Please wait.'
+                    ? 'Authenticated! Finalizing Neural Link...'
                     : qrCode
                         ? 'Scan QR code to connect'
                         : initializing
