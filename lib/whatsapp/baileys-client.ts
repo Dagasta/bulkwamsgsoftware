@@ -14,6 +14,32 @@ if (!globalForBaileys.cachedVersion) globalForBaileys.cachedVersion = null;
 export const activeConnections = globalForBaileys.activeConnections;
 const memoryLocks = globalForBaileys.memoryLocks;
 
+// --- Neural Watchdog: Periodic self-healing ---
+if (!globalForBaileys.watchdogTimer) {
+    globalForBaileys.watchdogTimer = setInterval(async () => {
+        debugLog(`[Watchdog] 🛡️ Neural Pulse check active.`);
+        const { createServiceClient } = await import('@/lib/supabase/service');
+        const adminClient = createServiceClient();
+
+        // 1. Recover connections that SHOULD be online but aren't in memory
+        const { data: onlineProfiles } = await adminClient
+            .from('profiles')
+            .select('id, whatsapp_lock_id')
+            .eq('whatsapp_status', 'connected');
+
+        if (onlineProfiles) {
+            for (const profile of onlineProfiles) {
+                const conn = activeConnections.get(profile.id);
+                // If not in memory OR socket is dead, but we hold the lock (or it's stale)
+                if (!conn || (conn.socket?.ws?.readyState !== 1)) {
+                    debugLog(`[Watchdog] 🔄 Auto-Recovering session for ${profile.id}`);
+                    connectToWhatsApp(profile.id).catch(() => { });
+                }
+            }
+        }
+    }, 60000); // Check every minute
+}
+
 // --- Cloud-Safe Path Management ---
 const getStorageBase = () => {
     // On Vercel or cloud environments, we MUST use /tmp as the rest is read-only
@@ -170,10 +196,16 @@ export async function connectToWhatsApp(userId: string) {
 
                 if (profile?.whatsapp_session) {
                     const credsFile = path.join(authDir, 'creds.json');
-                    // Only write if local doesn't exist or is different (speed optimization)
-                    if (!fs.existsSync(credsFile)) {
-                        fs.writeFileSync(credsFile, JSON.stringify(profile.whatsapp_session, null, 2));
-                        debugLog(`[Fortress] 🏰 Session restored from Database for ${userId}`);
+                    // FORCE SYNC: If DB session exists, ensure local matches it perfectly
+                    const dbSessionStr = JSON.stringify(profile.whatsapp_session, null, 2);
+                    let localSessionStr = '';
+                    if (fs.existsSync(credsFile)) {
+                        localSessionStr = fs.readFileSync(credsFile, 'utf8');
+                    }
+
+                    if (dbSessionStr !== localSessionStr) {
+                        fs.writeFileSync(credsFile, dbSessionStr);
+                        debugLog(`[Fortress] 🏰 Session synchronized from Database for ${userId}`);
                     }
                 }
             } catch (e: any) {
@@ -295,15 +327,24 @@ export async function connectToWhatsApp(userId: string) {
                     const isFatal = errorCode === DisconnectReason.loggedOut || errorCode === 401;
 
                     if (isFatal) {
-                        debugLog(`[Baileys] 💀 FATAL: ${errorCode}. Purging Identity ${userId}`);
+                        debugLog(`[Baileys] 💀 FATAL Error (${errorCode}). Purging Identity for ${userId}`);
                         disconnectBaileys(userId);
                     } else {
-                        debugLog(`[Baileys] 🔄 SOFT RECONNECT: ${errorCode}. Attempting recovery...`);
-                        setTimeout(() => {
-                            if (activeConnections.has(userId)) {
-                                connectToWhatsApp(userId).catch(() => { });
-                            }
-                        }, 3000);
+                        // Soft Disconnect: Increment retry count and only give up after 5 attempts
+                        const retryCount = (connState.retries || 0) + 1;
+                        connState.retries = retryCount;
+
+                        if (retryCount <= 5) {
+                            debugLog(`[Baileys] 🔄 SOFT RECONNECT (${errorCode}) [Attempt ${retryCount}/5] for ${userId}. Reason: ${errorReason}`);
+                            setTimeout(() => {
+                                if (activeConnections.has(userId)) {
+                                    connectToWhatsApp(userId).catch(() => { });
+                                }
+                            }, 5000);
+                        } else {
+                            debugLog(`[Baileys] 🛑 MAX RETRIES REACHED for ${userId}. Releasing for Watchdog.`);
+                            // Watchdog will pick it up later if it stays disconnected
+                        }
                     }
                 }
             });
