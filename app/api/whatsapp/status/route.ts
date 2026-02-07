@@ -27,41 +27,41 @@ export async function GET() {
         let memoryReady = isBaileysReady(userId);
         let qrCode = getBaileysQRCode(userId);
 
-        // --- THE PERMANENT TRUTH ---
-        // We check the database to see if we HAD a link. 
-        // If we did, we report READY even if memory is still catching up.
+        // --- THE PERMANENT TRUTH (V40) ---
+        // On Vercel, memory is volatile. Database is the ONLY constant.
         const { data: profile } = await supabase.from('profiles').select('whatsapp_linked').eq('id', userId).single();
         const dbReady = profile?.whatsapp_linked || false;
-        const ready = memoryReady || dbReady;
 
-        // --- THE CONNECTION BRIDGE (V24) ---
-        // If we are ready (on disk) OR if everything is idle, trigger a connection.
-        // This ensures the socket is ALIVE if we are linked.
+        // If the DB says we are linked, we are READY. 
+        // We only show "Scan QR" if DB is false.
+        const ready = dbReady;
+
+        // --- THE CONNECTION BRIDGE ---
         const { activeConnections, connPromises } = await import('@/lib/whatsapp/baileys-client');
         const isSocketAlive = activeConnections.has(userId);
         const isInitiating = connPromises.has(userId);
 
-        if (!isSocketAlive && !isInitiating && (ready || (!qrCode && !initializing))) {
-            console.log(`[Baileys Status] 🌉 Bridge Trigger: Activating engine for ${userId}`);
+        // If DB says linked but memory is cold, Bridge Trigger MUST wake up the socket.
+        if (ready && !isSocketAlive && !isInitiating) {
+            console.log(`[Baileys Status] 🌉 Neural Bridge Awakening for ${userId}`);
             connectToWhatsApp(userId).catch(err => {
-                console.error(`[Baileys Status] ❌ Bridge error:`, err);
+                console.error(`[Baileys Status] ❌ Bridge failed:`, err);
             });
-            if (!ready) initializing = true;
         }
 
-        console.log(`[Baileys Status] 📊 User ${userId} - Ready: ${ready}, QR: ${!!qrCode}, Init: ${initializing}`);
+        console.log(`[Baileys Status] 📊 User ${userId} - DB Ready: ${dbReady}, Socket: ${isSocketAlive}`);
 
         return NextResponse.json({
             qrCode,
-            ready,
+            ready, // DB Truth
+            isSocketAlive,
             memoryReady,
-            initializing,
+            initializing: initializing || (ready && !isSocketAlive), // If DB is ready but socket isn't, we are "initializing" the bridge
             linking,
             timestamp: Date.now(),
-            // Advanced status logic for UI smoothing
             isSyncing: ready && (!isSocketAlive),
             message: ready
-                ? (isSocketAlive ? 'WhatsApp is connected' : 'Synchronizing Neural Link...')
+                ? (isSocketAlive ? 'WhatsApp is connected' : 'Neural Link Active (Syncing...)')
                 : linking
                     ? 'Linking device... Please wait.'
                     : qrCode

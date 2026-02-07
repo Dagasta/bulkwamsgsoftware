@@ -13,6 +13,7 @@ export default function WhatsAppConnectPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isSyncing, setIsSyncing] = useState(false);
+    const [isSealed, setIsSealed] = useState(false); // Local 'Neural Seal'
     const [statusMessage, setStatusMessage] = useState<string>('Connecting...');
     const [initTimer, setInitTimer] = useState(0);
 
@@ -38,6 +39,7 @@ export default function WhatsAppConnectPage() {
             if (data.message) setStatusMessage(data.message);
             if (data.ready) {
                 setIsReady(true);
+                setIsSealed(true); // LOCK IT IN
                 setQrCode(null);
                 setIsLoading(false);
                 setIsSyncing(data.isSyncing || false);
@@ -97,7 +99,7 @@ export default function WhatsAppConnectPage() {
                 <div className="absolute top-0 left-0 w-full h-3 bg-gradient-primary"></div>
                 <div className="absolute -right-20 -bottom-20 w-80 h-80 bg-trust-blue opacity-5 rounded-full blur-[100px] group-hover:opacity-10 transition-opacity"></div>
 
-                {isLoading && !qrCode && !isReady && (
+                {isLoading && !qrCode && !isReady && !isSealed && (
                     <div className="text-center py-20 animate-pulse">
                         <div className="relative w-24 h-24 mx-auto mb-10">
                             <div className="absolute inset-0 rounded-full border-4 border-indigo-50 shadow-inner"></div>
@@ -155,7 +157,7 @@ export default function WhatsAppConnectPage() {
                     </div>
                 )}
 
-                {isReady && (
+                {(isReady || isSealed) && (
                     <div className="text-center py-20 animate-scale-up">
                         <div className="w-28 h-28 bg-emerald-50 rounded-[40px] flex items-center justify-center mx-auto mb-12 text-success-green animate-bounce shadow-inner">
                             <CheckCircle2 className="w-14 h-14" />
@@ -183,7 +185,7 @@ export default function WhatsAppConnectPage() {
                     </div>
                 )}
 
-                {qrCode && !isReady && (
+                {qrCode && !isReady && !isSealed && (
                     <div className="grid lg:grid-cols-2 gap-16 items-center">
                         <div className="text-center lg:text-left">
                             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-trust-blue/10 text-trust-blue font-black text-[10px] uppercase tracking-widest mb-6">
