@@ -2,6 +2,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight, MessageSquare, Users, Calendar, BarChart3, Shield, Zap, CheckCircle2, Star, Send, Upload } from 'lucide-react';
 import Footer from '@/components/ui/Footer';
+import WhatsAppSupport from '@/components/ui/WhatsAppSupport';
 
 export default function HomePage() {
     return (
@@ -48,12 +49,12 @@ export default function HomePage() {
                         </div>
 
                         <h1 className="text-6xl md:text-8xl font-black text-dark-navy leading-[1.05] tracking-tight animate-slide-up">
-                            The World&apos;s Unbreakable <br />
-                            <span className="gradient-text">WhatsApp Engine.</span>
+                            Own The Niche. <br />
+                            <span className="gradient-text underline decoration-indigo-500/20 underline-offset-8">Crush The Limits.</span>
                         </h1>
 
-                        <p className="text-xl md:text-2xl text-slate-gray leading-relaxed max-w-2xl mx-auto font-medium opacity-90">
-                            Scale without limits using our <span className="text-trust-blue font-bold">Iron-Clad</span> persistent link. Advanced Anti-Ban AI, precision scheduling, and deep analytics to dominate your niche.
+                        <p className="text-xl md:text-2xl text-slate-gray leading-relaxed max-w-2xl mx-auto font-medium opacity-90 italic">
+                            The world&apos;s only <span className="text-trust-blue font-black uppercase tracking-widest">Unstoppable</span> WhatsApp engine. Powered by Ghost-AI Anti-Ban, Fortress Stability, and Hyper-Growth analytics.
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-6 justify-center pt-6 animate-slide-up delay-100">
@@ -197,6 +198,7 @@ export default function HomePage() {
             </section>
 
             <Footer />
+            <WhatsAppSupport />
         </main>
     );
 }
@@ -209,23 +211,23 @@ const features = [
     },
     {
         icon: Shield,
-        title: 'Ghost Mode (Anti-Ban)',
-        description: 'Our proprietary AI-mimicry rotates content and uses human-like dispatch delays to keep your account 100% safe from bans.',
-    },
-    {
-        icon: Calendar,
-        title: 'Precision Scheduling',
-        description: 'Plan your campaigns 24/7. Our Fortress Storage ensures your messages go out on time, even if you are offline.',
-    },
-    {
-        icon: BarChart3,
-        title: 'Elite Analytics',
-        description: 'Real-time neural dashboards showing delivery, read, and conversion rates. Data-driven growth has never been this easy.',
+        title: 'Ghost AI (Unban-able)',
+        description: 'Our proprietary neural mimicry disguises your bot as a human. We don&apos;t just avoid bans—we make you invisible to the WhatsApp algorithm.',
     },
     {
         icon: Zap,
-        title: 'Eternal Signal Link',
-        description: 'Scan once, connect forever. Our new Global-Sync technology ensures your link never flickers or disconnects.',
+        title: 'Iron-Clad Persistence',
+        description: 'Scan once, dominate forever. Our Fortress Storage tech ensures your connection stays alive through server reboots and network storms.',
+    },
+    {
+        icon: Calendar,
+        title: 'Ruthless Scheduling',
+        description: 'Set it. Forget it. Conquer. Schedule campaigns weeks in advance. Our engine fires messages with sniper-precision even while you sleep.',
+    },
+    {
+        icon: BarChart3,
+        title: 'Predator Analytics',
+        description: 'Deep-dive into read rates, engagement, and ROI. Don&apos;t just send messages—extract every dollar of value from your audience.',
     },
     {
         icon: Upload,
