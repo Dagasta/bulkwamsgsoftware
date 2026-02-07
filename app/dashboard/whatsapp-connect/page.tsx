@@ -13,6 +13,17 @@ export default function WhatsAppConnectPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [statusMessage, setStatusMessage] = useState<string>('Connecting...');
+    const [initTimer, setInitTimer] = useState(0);
+
+    useEffect(() => {
+        let timer: any;
+        if (isLoading && !qrCode && !isReady) {
+            timer = setInterval(() => setInitTimer(prev => prev + 1), 1000);
+        } else {
+            setInitTimer(0);
+        }
+        return () => clearInterval(timer);
+    }, [isLoading, qrCode, isReady]);
 
     const checkStatus = useCallback(async () => {
         try {
@@ -92,7 +103,19 @@ export default function WhatsAppConnectPage() {
                             <Loader2 className="absolute inset-0 w-10 h-10 text-trust-blue m-auto opacity-40" />
                         </div>
                         <h3 className="text-3xl font-black text-dark-navy mb-4 tracking-tight">Initializing Pulse...</h3>
-                        <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs mb-12 italic">{statusMessage}</p>
+                        <p className="text-slate-400 font-bold uppercase tracking-[0.2em] text-xs mb-8 italic">{statusMessage}</p>
+
+                        {initTimer > 15 && (
+                            <div className="mb-10 p-6 bg-amber-50 rounded-[30px] border border-amber-100 animate-fade-in">
+                                <p className="text-amber-700 text-sm font-bold italic mb-4">Handshake is taking longer than expected...</p>
+                                <button
+                                    onClick={handleReset}
+                                    className="bg-amber-500 text-white px-8 py-3 rounded-full font-black text-xs uppercase tracking-widest shadow-lg hover:bg-amber-600 transition-all"
+                                >
+                                    Force Fresh Link
+                                </button>
+                            </div>
+                        )}
 
                         <div className="pt-10 border-t border-slate-50">
                             <button

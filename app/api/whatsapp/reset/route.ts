@@ -16,8 +16,10 @@ export async function POST() {
         // 1. Disconnect and Purge EVERY trace (Memory + Disk Pattern Match)
         disconnectBaileys(userId);
 
+        // 2. Extra delay to ensure locks are released by OS
+        await new Promise(r => setTimeout(r, 1000));
 
-        return NextResponse.json({ success: true, message: 'Session reset successfully' });
+        return NextResponse.json({ success: true, message: 'Neural network reconstructed successfully' });
     } catch (error) {
         console.error('[Baileys Reset] ❌ Error:', error);
         return NextResponse.json({ error: 'Failed to reset session' }, { status: 500 });

@@ -26,29 +26,37 @@ function acquireLock(userId: string): boolean {
 
     if (fs.existsSync(lockFile)) {
         try {
-            const pidString = fs.readFileSync(lockFile, 'utf8').trim();
+            const data = fs.readFileSync(lockFile, 'utf8').trim();
+            const [pidString, timestampString] = data.split(':');
             const pid = parseInt(pidString);
+            const timestamp = parseInt(timestampString);
+
             if (pid === process.pid) return true;
 
             // Check if process is still alive
             try {
                 process.kill(pid, 0);
-                // Process is alive. On Windows, let's check if it's actually a Node process
-                // but for now, we'll be slightly more permissive to avoid ghost blocks.
-                debugLog(`[Lock] 🚨 Lock held by alive PID ${pid}. Current PID ${process.pid}`);
+                // Process is alive, BUT check if the lock is "Ancient" (older than 2 mins)
+                // If it's ancient, it's likely a ghost handle from a crashed thread.
+                if (Date.now() - timestamp > 120000) {
+                    debugLog(`[Lock] 🚨 BRAKING ANCIENT LOCK: ${userId} (PID ${pid})`);
+                    fs.writeFileSync(lockFile, `${process.pid}:${Date.now()}`);
+                    return true;
+                }
+                debugLog(`[Lock] 🚨 Active Lock: PID ${pid}. Waiting...`);
                 return false;
             } catch (e) {
                 // Process is dead, take over
                 debugLog(`[Lock] 🔓 Stale lock found (PID ${pid} dead). Taking over.`);
-                fs.writeFileSync(lockFile, process.pid.toString());
+                fs.writeFileSync(lockFile, `${process.pid}:${Date.now()}`);
                 return true;
             }
         } catch (e) {
-            fs.writeFileSync(lockFile, process.pid.toString());
+            fs.writeFileSync(lockFile, `${process.pid}:${Date.now()}`);
             return true;
         }
     }
-    fs.writeFileSync(lockFile, process.pid.toString());
+    fs.writeFileSync(lockFile, `${process.pid}:${Date.now()}`);
     return true;
 }
 
@@ -131,7 +139,10 @@ export async function connectToWhatsApp(userId: string) {
         try {
             if (memoryLocks.has(userId)) return null;
             memoryLocks.add(userId);
-            acquireLock(userId);
+            if (!acquireLock(userId)) {
+                memoryLocks.delete(userId);
+                return null;
+            }
 
             const authDir = path.join(process.cwd(), '.baileys_auth', `session-v24-${userId}`);
             if (!fs.existsSync(authDir)) fs.mkdirSync(authDir, { recursive: true });
@@ -243,8 +254,9 @@ export async function connectToWhatsApp(userId: string) {
         } catch (error: any) {
             memoryLocks.delete(userId);
             connPromises.delete(userId);
-            disconnectBaileys(userId);
-            debugLog(`[Baileys] ❌ CRITICAL ERROR: ${error.message}`);
+            // Don't disconnect here unless it's truly fatal, 
+            // otherwise we'll enter a loop of deaths.
+            debugLog(`[Baileys] ❌ Initiation Fault (Session might be busy): ${error.message}`);
             throw error;
         } finally {
             // No-op, promise is managed by its own lifecycle
@@ -347,6 +359,18 @@ export function isBaileysReady(userId: string): boolean {
 export function isBaileysInitializing(userId: string): boolean {
     const conn = activeConnections.get(userId);
     if (!conn) return false;
+
+    // AUTO-HEALING: If we've been initializing for more than 40 seconds 
+    // without a QR code or being ready, it's a "Ghost Pulse".
+    if (conn.isInitializing && !conn.qrCode && !conn.isReady) {
+        const age = Date.now() - conn.startedAt;
+        if (age > 40000) {
+            debugLog(`[Baileys] 👻 Ghost Pulse Detected for ${userId}. Forcing surgery.`);
+            disconnectBaileys(userId);
+            return false;
+        }
+    }
+
     return conn.isInitializing;
 }
 

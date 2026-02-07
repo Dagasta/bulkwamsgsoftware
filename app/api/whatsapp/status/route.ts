@@ -49,6 +49,7 @@ export async function GET() {
             ready,
             initializing,
             linking,
+            timestamp: Date.now(),
             message: ready
                 ? 'WhatsApp is connected'
                 : linking
