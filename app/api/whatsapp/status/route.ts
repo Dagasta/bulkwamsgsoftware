@@ -57,6 +57,15 @@ export async function GET() {
             connectToWhatsApp(userId).catch(err => {
                 console.error(`[Baileys Status] ❌ Bridge failed:`, err);
             });
+
+            // SMALL BOOTSTRAP DELAY: If we just triggered a bridge, wait 2s to see if a QR generates
+            // This prevents the first poll from always returning 'initializing' and showing a flicker.
+            await new Promise(r => setTimeout(r, 2000));
+
+            // Re-check state after delay
+            const freshQR = getBaileysQRCode(userId);
+            if (freshQR) qrCode = freshQR;
+
             if (!ready) initializing = true;
         }
 

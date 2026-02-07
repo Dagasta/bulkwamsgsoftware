@@ -139,13 +139,6 @@ export async function connectToWhatsApp(userId: string) {
         return connPromises.get(userId);
     }
 
-    // 3. Selective Clean Slate: Only purge if we suspect corruption (no existing memory state)
-    if (!existing) {
-        debugLog(`[Baileys] 🧹 First-time initiation for: ${userId}. Ensuring clean slate.`);
-        // For first-time or explicit reconnection, we want to clear any orphan state
-        // disconnectBaileys(userId); // We'll be more selective below
-    }
-
     const initiationPromise = (async () => {
         try {
             if (memoryLocks.has(userId)) return null;
@@ -172,8 +165,10 @@ export async function connectToWhatsApp(userId: string) {
                 if (profile?.whatsapp_session) {
                     const credsFile = path.join(authDir, 'creds.json');
                     // Only write if local doesn't exist or is different (speed optimization)
-                    fs.writeFileSync(credsFile, JSON.stringify(profile.whatsapp_session, null, 2));
-                    debugLog(`[Fortress] 🏰 Session restored from Database for ${userId}`);
+                    if (!fs.existsSync(credsFile)) {
+                        fs.writeFileSync(credsFile, JSON.stringify(profile.whatsapp_session, null, 2));
+                        debugLog(`[Fortress] 🏰 Session restored from Database for ${userId}`);
+                    }
                 }
             } catch (e: any) {
                 debugLog(`[Fortress] ⚠️ Could not pull session: ${e.message}`);
@@ -250,32 +245,31 @@ export async function connectToWhatsApp(userId: string) {
                     connState.isLinking = true;
 
                     // Global-Sync
-                    import('@/lib/supabase/service').then(({ createServiceClient }) => {
-                        createServiceClient().from('profiles').update({
-                            whatsapp_status: 'linking'
-                        }).eq('id', userId);
-                    });
+                    const { createServiceClient } = await import('@/lib/supabase/service');
+                    await createServiceClient().from('profiles').update({
+                        whatsapp_status: 'linking'
+                    }).eq('id', userId);
                 }
             });
 
-            socket.ev.on('connection.update', (update) => {
+            socket.ev.on('connection.update', async (update) => {
                 const { connection, lastDisconnect, qr } = update;
 
                 if (qr) {
-                    QRCode.toDataURL(qr, { margin: 2, width: 400 }).then(data => {
+                    try {
+                        const data = await QRCode.toDataURL(qr, { margin: 2, width: 400 });
                         connState.qrCode = data;
                         debugLog(`[Baileys] 📱 QR Pulsing [${userId}]`);
 
                         // Global-Sync: Push QR to DB
-                        import('@/lib/supabase/service').then(({ createServiceClient }) => {
-                            createServiceClient().from('profiles').update({
-                                whatsapp_qr: data,
-                                whatsapp_status: 'qr_ready'
-                            }).eq('id', userId);
-                        });
-                    }).catch(e => {
+                        const { createServiceClient } = await import('@/lib/supabase/service');
+                        await createServiceClient().from('profiles').update({
+                            whatsapp_qr: data,
+                            whatsapp_status: 'qr_ready'
+                        }).eq('id', userId);
+                    } catch (e: any) {
                         debugLog(`[Baileys] ❌ QR Gen Fail: ${e.message}`);
-                    });
+                    }
                 }
 
                 if (connection === 'open') {
@@ -287,15 +281,13 @@ export async function connectToWhatsApp(userId: string) {
                     connState.qrCode = null;
 
                     // Global-Sync: Success Lock
-                    import('@/lib/supabase/service').then(({ createServiceClient }) => {
-                        createServiceClient().from('profiles').update({
-                            whatsapp_linked: true,
-                            whatsapp_status: 'connected',
-                            whatsapp_qr: null
-                        }).eq('id', userId).then(() => {
-                            debugLog(`[DB] 🔒 CONNECTION SEALED GLOSSALLY FOR ${userId}`);
-                        });
-                    });
+                    const { createServiceClient } = await import('@/lib/supabase/service');
+                    await createServiceClient().from('profiles').update({
+                        whatsapp_linked: true,
+                        whatsapp_status: 'connected',
+                        whatsapp_qr: null
+                    }).eq('id', userId);
+                    debugLog(`[DB] 🔒 CONNECTION SEALED GLOSSALLY FOR ${userId}`);
                 }
 
                 if (connection === 'close') {
