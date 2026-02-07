@@ -89,9 +89,28 @@ export async function GET(request: NextRequest) {
             await connectToWhatsApp(campaign.user_id);
 
             let retries = 0;
-            // Wait up to 30s for the socket to be fully OPEN
-            while (!isBaileysReady(campaign.user_id, true) && retries < 30) {
-                if (retries % 5 === 0) await connectToWhatsApp(campaign.user_id);
+            // Wait up to 60s for the socket to be fully STABLE (DB-Backed Polling)
+            while (retries < 60) {
+                const { isBaileysReady, connectToWhatsApp } = await import('@/lib/whatsapp/baileys-client');
+
+                // 1. Check local memory first
+                if (isBaileysReady(campaign.user_id, true)) break;
+
+                // 2. Check Global Source of Truth (Database)
+                const { data: profile } = await supabase.from('profiles').select('whatsapp_status').eq('id', campaign.user_id).single();
+                if (profile?.whatsapp_status === 'connected') {
+                    debugLog(`[Worker] 🌐 Global Link detected in DB. Preparing local bridge...`);
+                    await connectToWhatsApp(campaign.user_id);
+                    if (isBaileysReady(campaign.user_id, true)) break;
+                }
+
+                debugLog(`[Worker] ⏳ Global Sync... (Attempt ${retries + 1}/30) | Status: ${profile?.whatsapp_status}`);
+
+                if (retries % 5 === 0 && retries > 0) {
+                    debugLog(`[Worker] 🔄 Driving bridge trigger...`);
+                    await connectToWhatsApp(campaign.user_id);
+                }
+
                 await new Promise(r => setTimeout(r, 1000));
                 retries++;
             }

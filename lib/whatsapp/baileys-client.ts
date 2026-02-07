@@ -4,6 +4,7 @@ import { Boom } from '@hapi/boom';
 import * as fs from 'fs';
 import * as path from 'path';
 
+export const INSTANCE_ID = Math.random().toString(36).substring(2, 15); // Unique ID for this server instance
 // --- Global Persistence for Next.js ---
 const globalForBaileys = global as any;
 if (!globalForBaileys.activeConnections) globalForBaileys.activeConnections = new Map();
@@ -12,7 +13,6 @@ if (!globalForBaileys.cachedVersion) globalForBaileys.cachedVersion = null;
 
 export const activeConnections = globalForBaileys.activeConnections;
 const memoryLocks = globalForBaileys.memoryLocks;
-const INSTANCE_ID = Math.random().toString(36).substring(2, 15); // Unique ID for this server instance
 
 // --- Cloud-Safe Path Management ---
 const getStorageBase = () => {
@@ -28,8 +28,8 @@ const STORAGE_BASE = getStorageBase();
 export function debugLog(message: string) {
     const logPath = path.join(STORAGE_BASE, 'dispatch.log');
     if (!fs.existsSync(STORAGE_BASE)) fs.mkdirSync(STORAGE_BASE, { recursive: true });
-    const entry = `[${new Date().toISOString()}] ${message}\n`;
-    console.log(message);
+    const entry = `[${new Date().toISOString()}] [${INSTANCE_ID}] ${message}\n`;
+    console.log(`[${INSTANCE_ID}] ${message}`);
     try { fs.appendFileSync(logPath, entry); } catch (e) { }
 }
 
@@ -50,16 +50,22 @@ async function acquireGlobalLock(userId: string): Promise<boolean> {
 
         // If locked by someone else, check if it's expired (60s)
         if (lockId && lockAt && (now.getTime() - lockAt.getTime() < 60000)) {
+            debugLog(`[Lock] 🛑 Locked by another instance: ${lockId}`);
             return false;
         }
 
-        // 2. Try to seize the lock atomically
+        // 2. Try to seize the lock atomically (Conditional Update)
         const { error } = await adminClient.from('profiles').update({
             whatsapp_lock_id: INSTANCE_ID,
             whatsapp_lock_at: now.toISOString()
-        }).eq('id', userId);
+        })
+            .eq('id', userId)
+            .or(`whatsapp_lock_id.is.null,whatsapp_lock_id.eq.${lockId || 'none'}`);
 
-        if (error) return false;
+        if (error) {
+            debugLog(`[Lock] 🛑 Race condition lost for ${userId}`);
+            return false;
+        }
 
         debugLog(`[Lock] 🔒 GLOBAL LOCK SEIZED for ${userId} (Instance: ${INSTANCE_ID})`);
         return true;
@@ -195,10 +201,10 @@ export async function connectToWhatsApp(userId: string) {
                 version,
                 auth: state,
                 printQRInTerminal: false,
-                browser: ['Ubuntu', 'Chrome', '20.0.04'], // Most stable Baileys browser string
-                connectTimeoutMs: 120000, // Very generous for slow handshakes
-                defaultQueryTimeoutMs: 120000,
-                keepAliveIntervalMs: 30000,
+                browser: ['Mac OS', 'Chrome', '121.0.6167.184'],
+                connectTimeoutMs: 180000,
+                defaultQueryTimeoutMs: 180000,
+                keepAliveIntervalMs: 60000,
                 retryRequestDelayMs: 5000,
                 fireInitQueries: true,
                 markOnlineOnConnect: true,
@@ -224,16 +230,13 @@ export async function connectToWhatsApp(userId: string) {
                 debugLog(`[Trace] 💾 Creds Sync [${userId}]`);
                 await saveCreds();
 
-                // Fortress Sync: Push to DB
-                try {
-                    const { createServiceClient } = await import('@/lib/supabase/service');
+                // Fortress Sync: DO NOT AWAIT (Critical for event loop performance)
+                import('@/lib/supabase/service').then(async ({ createServiceClient }) => {
                     const adminClient = createServiceClient();
                     await adminClient.from('profiles').update({
                         whatsapp_session: state.creds
                     }).eq('id', userId);
-                } catch (e: any) {
-                    debugLog(`[Fortress] ⚠️ Backup failed: ${e.message}`);
-                }
+                }).catch(() => { });
 
                 if (socket.authState.creds.me?.id && !connState.isReady) {
                     debugLog(`[Baileys] 🆔 Identity established for: ${userId}.`);
@@ -395,7 +398,9 @@ export function isBaileysReady(userId: string, strict = false): boolean {
         // If strict, we MUST be fully CONNECTED (readyState 1)
         if (strict) {
             const ws = conn.socket?.ws;
-            return conn.isReady && !conn.isInitializing && ws?.readyState === 1;
+            // Lenient Strict: If OPEN and has identity, we proceed even if isInitializing is true
+            // (Baileys sometimes stays in initializing during the first large sync)
+            return conn.isReady && ws?.readyState === 1;
         }
 
         // OPTIMISTIC READY: If we have keys (isReady), we are "Ready".
@@ -462,17 +467,6 @@ export async function sendBaileysMessage(userId: string, to: string, message: st
 
     // Apply Spintax transformation
     const finalMessage = parseSpintax(message);
-
-    // 2. Typing Simulation (Strong Anti-Ban Signal)
-    try {
-        await conn.socket.sendPresenceUpdate('composing', jid);
-        // Simulate typing time based on message length (min 1s, max 3s)
-        const typingTime = Math.min(Math.max(message.length * 20, 1000), 3000);
-        await new Promise(r => setTimeout(r, typingTime));
-        await conn.socket.sendPresenceUpdate('paused', jid);
-    } catch (e) {
-        debugLog(`[Anti-Ban] ⚠️ Typing signal failed for ${to}`);
-    }
 
     const media = Array.isArray(mediaList) ? mediaList : (mediaList ? [mediaList] : []);
 

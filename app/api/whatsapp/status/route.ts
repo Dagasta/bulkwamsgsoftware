@@ -28,10 +28,11 @@ export async function GET() {
         let qrCode = getBaileysQRCode(userId);
 
         // --- THE PERMANENT TRUTH (V43 - GLOBAL SYNC) ---
-        const { data: profile } = await supabase.from('profiles').select('whatsapp_linked, whatsapp_status, whatsapp_qr').eq('id', userId).single();
+        const { data: profile } = await supabase.from('profiles').select('whatsapp_linked, whatsapp_status, whatsapp_qr, whatsapp_lock_id').eq('id', userId).single();
         const dbReady = profile?.whatsapp_linked || false;
         const dbStatus = profile?.whatsapp_status || 'idle';
         const dbQR = profile?.whatsapp_qr;
+        const lockId = profile?.whatsapp_lock_id;
 
         // HYBRID READY: Success if memory says so OR DB says so.
         let ready = memoryReady || dbReady || dbStatus === 'connected';
@@ -44,13 +45,18 @@ export async function GET() {
         if (dbStatus === 'initializing') initializing = true;
 
         // --- THE CONNECTION BRIDGE ---
-        const { activeConnections, connPromises } = await import('@/lib/whatsapp/baileys-client');
+        const { activeConnections, connPromises, INSTANCE_ID } = await import('@/lib/whatsapp/baileys-client');
         const isSocketAlive = activeConnections.has(userId);
         const isInitiating = connPromises.has(userId);
 
+        // LOCK PROTECTION: If someone else holds the lock, do NOT trigger
+        const isLockedByOthers = lockId && lockId !== INSTANCE_ID;
+
         // TRIGGER LOGIC:
-        const shouldTrigger = (ready && !isSocketAlive && !isInitiating) ||
-            (!ready && !initializing && !qrCode && !isInitiating);
+        const shouldTrigger = !isLockedByOthers && (
+            (ready && !isSocketAlive && !isInitiating) ||
+            (!ready && !initializing && !qrCode && !isInitiating)
+        );
 
         if (shouldTrigger) {
             console.log(`[Baileys Status] 🌉 Neural Pulse Triggered for ${userId} (Global Mode)`);
