@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
-import { createClient } from '@/lib/supabase/route-handler';
 import { sendBaileysBulkMessages, debugLog } from '@/lib/whatsapp/baileys-client';
 
 export const dynamic = 'force-dynamic';
@@ -8,10 +7,9 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: NextRequest) {
     debugLog('[Worker] Signal Pulse heartbeat received.');
     try {
-        // FORCE FAIL-SAFE: The Service Role Key is currently invalid (401).
-        // Using Standard Client + Emergency SQL permissions to restore service.
-        const supabase = createClient();
-        debugLog('[Worker] Running on Fail-Safe Anon Client.');
+        // USE SERVICE ROLE: Secure and bypasses RLS for batch jobs
+        const supabase = createServiceClient();
+        debugLog('[Worker] Running on Secure Service Client.');
 
         // 1. Fetch campaigns that are 'scheduled' (time passed) OR 'queued' (manual)
         const nowISO = new Date().toISOString();
@@ -83,22 +81,24 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'No recipient messages found' }, { status: 400 });
         }
 
-        // 4. Ensure WhatsApp is connected
+        // 4. Ensure WhatsApp is connected (STRICT MODE)
         const { connectToWhatsApp, isBaileysReady } = await import('@/lib/whatsapp/baileys-client');
-        if (!isBaileysReady(campaign.user_id)) {
-            debugLog(`[Worker] Neural Link offline. Triggering Bridge...`);
+        if (!isBaileysReady(campaign.user_id, true)) {
+            debugLog(`[Worker] Neural Link offline or connecting. Synchronizing...`);
+            // Trigger connection
             await connectToWhatsApp(campaign.user_id);
 
             let retries = 0;
-            while (!isBaileysReady(campaign.user_id) && retries < 30) {
+            // Wait up to 30s for the socket to be fully OPEN
+            while (!isBaileysReady(campaign.user_id, true) && retries < 30) {
                 if (retries % 5 === 0) await connectToWhatsApp(campaign.user_id);
                 await new Promise(r => setTimeout(r, 1000));
                 retries++;
             }
         }
 
-        if (!isBaileysReady(campaign.user_id)) {
-            throw new Error('WhatsApp Neural Link failed to synchronize.');
+        if (!isBaileysReady(campaign.user_id, true)) {
+            throw new Error('WhatsApp Neural Link failed to stabilize (Timeout).');
         }
 
         // 5. Execute Bulk Send
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest) {
                 messageTemplates,
                 campaign.media,
                 async (count: number, total: number, result: any) => {
-                    // Sync individual message via SECURE RPC
+                    // Sync individual message via RPC
                     await supabase.rpc('update_message_telemetry', {
                         target_campaign_id: campaign.id,
                         target_phone: result.phone,
@@ -116,7 +116,7 @@ export async function GET(request: NextRequest) {
                         new_error: result.success ? null : (result.error || 'Unknown Error')
                     });
 
-                    // Sync campaign progress via SECURE RPC
+                    // Sync campaign progress via RPC
                     await supabase.rpc('update_mission_telemetry', {
                         target_campaign_id: campaign.id,
                         new_sent_count: count,
@@ -125,7 +125,7 @@ export async function GET(request: NextRequest) {
                 }
             );
 
-            // 6. Finalize via SECURE RPC
+            // 6. Finalize via RPC
             const finalSuccessfulCount = results.filter((r: any) => r.success).length;
             await supabase.rpc('update_mission_telemetry', {
                 target_campaign_id: campaign.id,
@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
             });
         } catch (sendError: any) {
             debugLog(`[Worker] Transmission Error: ${sendError.message}`);
-            const isConnectionIssue = sendError.message.includes('not connected') || sendError.message.includes('Disconnected');
+            const isConnectionIssue = sendError.message.includes('not fully established') || sendError.message.includes('Disconnected');
 
             await supabase.rpc('update_mission_telemetry', {
                 target_campaign_id: campaign.id,
@@ -150,7 +150,6 @@ export async function GET(request: NextRequest) {
                 new_status: isConnectionIssue ? 'queued' : 'failed'
             });
 
-            // Log error to campaigns table directly if RPC failed or for full context
             await supabase.from('campaigns').update({
                 error_log: `Transmission Error: ${sendError.message}`
             }).eq('id', campaign.id);

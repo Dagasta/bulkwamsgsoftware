@@ -387,13 +387,18 @@ export function getBaileysQRCode(userId: string): string | null {
     return activeConnections.get(userId)?.qrCode || null;
 }
 
-export function isBaileysReady(userId: string): boolean {
+export function isBaileysReady(userId: string, strict = false): boolean {
     const conn = activeConnections.get(userId);
 
     // 1. Check memory state (Primary Source of Truth)
     if (conn) {
+        // If strict, we MUST be fully CONNECTED (readyState 1)
+        if (strict) {
+            const ws = conn.socket?.ws;
+            return conn.isReady && !conn.isInitializing && ws?.readyState === 1;
+        }
+
         // OPTIMISTIC READY: If we have keys (isReady), we are "Ready".
-        // We don't care if the socket is temporarily reconnecting in the background.
         if (conn.isReady) return true;
         return false;
     }
@@ -448,7 +453,10 @@ export function isBaileysLinking(userId: string): boolean {
 
 export async function sendBaileysMessage(userId: string, to: string, message: string, mediaList?: any) {
     const conn = activeConnections.get(userId);
-    if (!conn || !isBaileysReady(userId)) throw new Error('WhatsApp Disconnected');
+    // Use STRICT check for actual transmission
+    if (!conn || !isBaileysReady(userId, true)) {
+        throw new Error('WhatsApp Neural Link is not fully established yet. Please wait.');
+    }
 
     const jid = repairJID(to);
 
