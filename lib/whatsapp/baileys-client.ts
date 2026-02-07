@@ -236,6 +236,14 @@ export async function connectToWhatsApp(userId: string) {
                     connState.isInitializing = false;
                     connState.isLinking = false;
                     connState.qrCode = null;
+
+                    // Update DB for Permanent Truth
+                    import('@/lib/supabase/service').then(({ createServiceClient }) => {
+                        const adminClient = createServiceClient();
+                        adminClient.from('profiles').update({ whatsapp_linked: true }).eq('id', userId).then(() => {
+                            debugLog(`[DB] 💾 Link state locked for ${userId}`);
+                        });
+                    }).catch(e => debugLog(`[DB] ⚠️ Link lock failed: ${e.message}`));
                 }
 
                 if (connection === 'close') {
@@ -326,6 +334,14 @@ export function disconnectBaileys(userId: string) {
     }
 
     debugLog(`[Baileys] 🗑️ Global state purged for: ${userId}`);
+
+    // Update DB to reflect loss of link
+    import('@/lib/supabase/service').then(({ createServiceClient }) => {
+        const adminClient = createServiceClient();
+        adminClient.from('profiles').update({ whatsapp_linked: false }).eq('id', userId).then(() => {
+            debugLog(`[DB] 🗑️ Link state cleared for ${userId}`);
+        });
+    }).catch(e => debugLog(`[DB] ⚠️ Link clear failed: ${e.message}`));
 }
 
 export function getBaileysQRCode(userId: string): string | null {

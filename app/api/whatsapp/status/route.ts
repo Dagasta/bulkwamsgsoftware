@@ -24,8 +24,15 @@ export async function GET() {
 
         let linking = isBaileysLinking(userId);
         let initializing = isBaileysInitializing(userId);
-        let ready = isBaileysReady(userId);
+        let memoryReady = isBaileysReady(userId);
         let qrCode = getBaileysQRCode(userId);
+
+        // --- THE PERMANENT TRUTH ---
+        // We check the database to see if we HAD a link. 
+        // If we did, we report READY even if memory is still catching up.
+        const { data: profile } = await supabase.from('profiles').select('whatsapp_linked').eq('id', userId).single();
+        const dbReady = profile?.whatsapp_linked || false;
+        const ready = memoryReady || dbReady;
 
         // --- THE CONNECTION BRIDGE (V24) ---
         // If we are ready (on disk) OR if everything is idle, trigger a connection.
@@ -47,6 +54,7 @@ export async function GET() {
         return NextResponse.json({
             qrCode,
             ready,
+            memoryReady,
             initializing,
             linking,
             timestamp: Date.now(),
